@@ -66,12 +66,13 @@ bookfetch download zlib:1234567/a1b2c3 --out ~/Books --name pride-and-prejudice.
 bookfetch download gutenberg:1342 --out ~/Books
 bookfetch download standardebooks:jane-austen/pride-and-prejudice --out ~/Books
 bookfetch search "attention is all you need" --source arxiv --limit 3
+bookfetch search "frankenstein" --source standardebooks,gutenberg
 bookfetch download arxiv:1706.03762 --out ~/Papers
 bookfetch quota
 bookfetch accounts
 ```
 
-`search` asks every available source at the same time (or only the one given with `--source NAME`) and prints each result's title, author, publisher, a summary line (language, format, size, year) and an id such as `annas:MD5`, `zlib:ID/HASH` or `gutenberg:1342`. Pass that id to `download` exactly as printed. `--limit` applies per source and defaults to 5 when searching all sources and 10 for a single one. If one source fails, its error goes to standard error and the other results are still shown. `--json` prints all results in one list with the same fields for every source. For the open sources the year is the one the source reports: Gutenberg gives none, Standard Ebooks gives the year of its edition, and Open Library gives the year of the scanned printing when known.
+`search` asks every available source at the same time (or only the ones given with `--source`, e.g. `--source gutenberg,standardebooks`) and prints each result's title, author, publisher, a summary line (language, format, size, year) and an id such as `annas:MD5`, `zlib:ID/HASH` or `gutenberg:1342`. Pass that id to `download` exactly as printed. `--limit` applies per source and defaults to 5 when searching several sources and 10 for a single one. If one source fails, its error goes to standard error and the other results are still shown. `--json` prints all results in one list with the same fields for every source. For the open sources the year is the one the source reports: Gutenberg gives none, Standard Ebooks gives the year of its edition, and Open Library gives the year of the scanned printing when known.
 
 `download` saves the file and prints its path. For Anna's Archive and Z-Library it also prints how many downloads that account has left today; every download there counts against your daily allowance, even if the transfer fails afterwards, so pick the file before you download it. With the open sources, a file arrives under a temporary name and is only renamed once it is complete, and bookfetch refuses to save a web page in place of a book.
 

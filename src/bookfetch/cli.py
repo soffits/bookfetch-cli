@@ -49,8 +49,23 @@ def add_common(p: argparse.ArgumentParser, top: bool) -> None:
     p.add_argument("--account", metavar="NAME", default=default, help="use only this account (default: the first, then the next ones)")
 
 
+def source_list(value: str) -> list[str]:
+    """Parse ``--source``: ``all``, one name, or a comma-separated list of names."""
+    names = [n.strip() for n in value.split(",") if n.strip()]
+    if not names:
+        raise argparse.ArgumentTypeError("expected a source name, a comma-separated list, or 'all'")
+    if "all" in names:
+        return list(SOURCES)
+    unknown = [n for n in names if n not in SOURCES]
+    if unknown:
+        raise argparse.ArgumentTypeError(f"unknown source {', '.join(map(repr, unknown))} (choose from {', '.join(SOURCES)}, all)")
+    return list(dict.fromkeys(names))
+
+
+SOURCE_HELP = f"one or more of {', '.join(SOURCES)}, comma-separated, or 'all' (default)"
+
+
 def build_parser() -> argparse.ArgumentParser:
-    choices = [*SOURCES, "all"]
     p = argparse.ArgumentParser(prog="bookfetch", description=DESCRIPTION, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     p.add_argument("--annas-key-file", help="file holding the Anna's Archive member secret key (replaces the 'env' account)")
@@ -58,7 +73,7 @@ def build_parser() -> argparse.ArgumentParser:
     sub = p.add_subparsers(dest="cmd", required=True)
     sp = sub.add_parser("search", help="search and list candidates")
     sp.add_argument("query")
-    sp.add_argument("--source", choices=choices, default="all", help="where to search (default: all configured)")
+    sp.add_argument("--source", type=source_list, default="all", metavar="NAMES", help=SOURCE_HELP)
     sp.add_argument("--ext", help="file type, e.g. epub, pdf")
     sp.add_argument("--lang", help="language code, e.g. en, zh")
     sp.add_argument(
@@ -74,10 +89,10 @@ def build_parser() -> argparse.ArgumentParser:
     dp.add_argument("--name", help="file name to save as")
     add_common(dp, top=False)
     qp = sub.add_parser("quota", help="show download usage for each account")
-    qp.add_argument("--source", choices=choices, default="all")
+    qp.add_argument("--source", type=source_list, default="all", metavar="NAMES", help=SOURCE_HELP)
     add_common(qp, top=False)
     ap = sub.add_parser("accounts", aliases=["config"], help="list configured accounts and where they come from (no secrets)")
-    ap.add_argument("--source", choices=choices, default="all")
+    ap.add_argument("--source", type=source_list, default="all", metavar="NAMES", help=SOURCE_HELP)
     add_common(ap, top=False)
     return p
 
@@ -110,8 +125,14 @@ def note(msg: str) -> None:
     print(f"bookfetch: {msg}", file=sys.stderr)
 
 
-def source_names(selected: str) -> list[str]:
-    return list(SOURCES) if selected == "all" else [selected]
+def source_names(selected: str | list[str]) -> list[str]:
+    if isinstance(selected, str):  # argparse leaves the default string unconverted
+        return source_list(selected)
+    return list(selected)
+
+
+def several(selected: str | list[str]) -> bool:
+    return len(source_names(selected)) > 1
 
 
 def accounts_for(cfg: config.Config, names: list[str], wanted: str | None) -> dict[str, list[Account]]:
@@ -163,7 +184,9 @@ def run_with_fallback(name: str, accounts: list[Account], cfg, action, fallback_
     raise AssertionError("no accounts")
 
 
-def for_each_source(selected: str, a: argparse.Namespace, cfg, action, fallback_on=(MissingConfigError, LoginError)) -> tuple[int, dict]:
+def for_each_source(
+    selected: str | list[str], a: argparse.Namespace, cfg, action, fallback_on=(MissingConfigError, LoginError)
+) -> tuple[int, dict]:
     """Run ``action(source)`` for the selected sources, one account each.
 
     With several sources they run in parallel threads, so a slow source does not
@@ -180,7 +203,7 @@ def for_each_source(selected: str, a: argparse.Namespace, cfg, action, fallback_
             active.append(name)
         else:
             reason = not_configured(name, a.account)
-            note(f"{name}: skipped, {reason}" if selected == "all" else f"{name}: {reason}")
+            note(f"{name}: skipped, {reason}" if several(selected) else f"{name}: {reason}")
 
     def run(name):
         try:
@@ -217,7 +240,7 @@ def format_result(i: int, r: dict) -> str:
 
 
 def cmd_search(a: argparse.Namespace, cfg) -> int:
-    limit = a.limit if a.limit is not None else DEFAULT_LIMIT_ALL if a.source == "all" else DEFAULT_LIMIT_ONE
+    limit = a.limit if a.limit is not None else DEFAULT_LIMIT_ALL if several(a.source) else DEFAULT_LIMIT_ONE
     code, results = for_each_source(a.source, a, cfg, lambda source: source.search(a.query, ext=a.ext, lang=a.lang, limit=limit))
     rows = [r for name in results for r in results[name]]
     if a.json:
@@ -256,7 +279,7 @@ def cmd_quota(a: argparse.Namespace, cfg) -> int:
     for name in names:
         if not chosen[name]:
             reason = not_configured(name, a.account)
-            note(f"{name}: skipped, {reason}" if a.source == "all" else f"{name}: {reason}")
+            note(f"{name}: skipped, {reason}" if several(a.source) else f"{name}: {reason}")
             continue
         for account in chosen[name]:
             source = None

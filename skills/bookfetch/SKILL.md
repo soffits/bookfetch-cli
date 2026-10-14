@@ -13,9 +13,9 @@ description: "Use when finding or downloading a book or paper with the bookfetch
 Never print, echo, or paste a key, password, cookie, or Standard Ebooks patron email; point the tool at files instead.
 
 ```bash
-bookfetch search "title author" [--source NAME|all] [--ext epub|pdf|txt|azw3] [--lang en] [--limit 5] [--json]
+bookfetch search "title author" [--source NAME[,NAME...]|all] [--ext epub|pdf|txt|azw3] [--lang en] [--limit 5] [--json]
 bookfetch download SOURCE:ID --out DIR [--name FILE]
-bookfetch quota [--source NAME|all]
+bookfetch quota [--source NAME[,NAME...]|all]
 bookfetch accounts            # accounts and where they come from; no secrets
 # any command: --account NAME (use only that account), --config PATH
 ```
@@ -29,7 +29,7 @@ bookfetch accounts            # accounts and where they come from; no secrets
 
 ## Workflow
 
-1. Search with the title and author. Without `--source` all sources are searched in parallel, 5 results each; add `--ext` and `--lang` when the user named a format or language. Use `--json` when you need to process results. A note on stderr like `zlib: skipped, ...` means that source isn't configured; an error line for one source doesn't invalidate the others' results.
+1. Search with the title and author. Without `--source` all sources are searched in parallel, 5 results each (a comma list like `--source standardebooks,gutenberg` searches just those); add `--ext` and `--lang` when the user named a format or language. Use `--json` when you need to process results. A note on stderr like `zlib: skipped, ...` means that source isn't configured; an error line for one source doesn't invalidate the others' results.
 2. Show the user the candidates: title, author, publisher, summary (language, format, size, year), and the id. If several are plausible, let the user pick. Otherwise prefer the requested language and format, a proper edition (Standard Ebooks, a publisher edition) over a scan, and EPUB for reading.
 3. Download only the chosen id, passing it exactly as printed (`annas:MD5`, `zlib:ID/HASH`, `gutenberg:1342`, `standardebooks:jane-austen/emma`, `openlibrary:IDENTIFIER`, `arxiv:hep-th/9901001v3`), into a directory the user expects. Open-source ids can carry a format: `gutenberg:1342:txt`, `standardebooks:jane-austen/emma:azw3`, `openlibrary:IDENTIFIER:pdf`.
 4. Check the file: an EPUB is a zip whose `mimetype` entry is `application/epub+zip`; a PDF starts with `%PDF`. If it's HTML or tiny, the download failed; say so.

@@ -99,6 +99,34 @@ def test_search_single_source(monkeypatch, capsys):
     assert "Book Z" in capsys.readouterr().out
 
 
+def test_search_source_list(monkeypatch, capsys):
+    a = StubSource("annas", rows=[ROW_A])
+    z = StubSource("zlib", rows=[ROW_Z])
+    install(monkeypatch, annas=a, zlib=z)
+    assert cli.main(["search", "book", "--source", "zlib, annas,zlib"]) == 0
+    out = capsys.readouterr().out
+    assert "Book A" in out and "Book Z" in out
+
+
+@pytest.mark.parametrize("value", ["", ",", "zlib,nope", "nope"])
+def test_source_list_rejects_bad_names(value):
+    with pytest.raises(cli.argparse.ArgumentTypeError):
+        cli.source_list(value)
+
+
+def test_source_list_all_and_order():
+    assert cli.source_list("all") == list(cli.SOURCES)
+    assert cli.source_list("zlib,all") == list(cli.SOURCES)
+    assert cli.source_list("zlib,annas,zlib") == ["zlib", "annas"]
+
+
+def test_bad_source_exits_2(capsys):
+    with pytest.raises(SystemExit) as e:
+        cli.main(["search", "book", "--source", "nope"])
+    assert e.value.code == 2
+    assert "unknown source 'nope'" in capsys.readouterr().err
+
+
 def test_search_all_failing_exit_1(monkeypatch, capsys):
     install(monkeypatch, zlib=StubSource("zlib", error=ZlibError("search: blocked")))
     assert cli.main(["search", "book"]) == 1
@@ -156,4 +184,4 @@ def test_quota_all(monkeypatch, capsys):
 def test_version(capsys):
     with pytest.raises(SystemExit):
         cli.main(["--version"])
-    assert capsys.readouterr().out.strip() == "bookfetch 0.4.0"
+    assert capsys.readouterr().out.strip() == f"bookfetch {cli.__version__}"

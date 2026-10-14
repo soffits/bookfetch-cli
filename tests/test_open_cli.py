@@ -113,6 +113,15 @@ def test_single_source_default_limit(monkeypatch, capsys):
 
 
 @pytest.mark.open_sources
+def test_source_list_uses_all_sources_limit(monkeypatch, capsys):
+    stubs = {"gutenberg": Stub("gutenberg", [row("gutenberg", "1342")]), "arxiv": Stub("arxiv", [])}
+    install_open(monkeypatch, stubs)
+    assert cli.main(["search", "pride", "--source", "gutenberg,arxiv"]) == 0
+    assert stubs["gutenberg"].limit == cli.DEFAULT_LIMIT_ALL
+    assert stubs["arxiv"].limit == cli.DEFAULT_LIMIT_ALL
+
+
+@pytest.mark.open_sources
 def test_download_open_source_prints_no_quota(monkeypatch, tmp_path, capsys):
     install_open(monkeypatch, {})
     assert cli.main(["download", "arxiv:hep-th/9901001v3", "--out", str(tmp_path)]) == 0

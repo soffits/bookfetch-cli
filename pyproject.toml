@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "bookfetch-cli"
-version = "0.4.0"
+version = "0.4.1"
 description = "Search and download books and papers from Anna's Archive, Z-Library, Project Gutenberg, Standard Ebooks, Open Library and arXiv"
 readme = "README.md"
 license = "MIT"
