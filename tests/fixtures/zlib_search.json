@@ -1,0 +1,10 @@
+{
+ "success": 1,
+ "books": [
+  {"id": 1000001, "hash": "a1b2c3", "title": "Pride and Prejudice", "author": "Jane Austen", "year": 1998, "publisher": "Example Press",
+   "language": "English", "extension": "epub", "filesize": 407595, "filesizeString": "398 KB", "md5": "0123456789abcdef0123456789abcdef",
+   "identifier": "", "series": "", "pages": 0, "edition": null},
+  {"id": 1000002, "hash": "d4e5f6", "title": "Moby Dick", "author": "Herman Melville", "year": 0, "publisher": "",
+   "language": "English", "extension": "pdf", "filesizeString": "2 MB", "series": "Example Classics", "pages": 600}
+ ]
+}

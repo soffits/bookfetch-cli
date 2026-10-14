@@ -1,6 +1,7 @@
 from pathlib import Path
 
-from annas_archive_cli.client import filename_from_url, parse_quota, parse_results, safe_filename
+from bookfetch.common import filename_from_url, safe_filename
+from bookfetch.sources.annas import parse_quota, parse_results
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -51,3 +52,21 @@ def test_safe_filename():
 def test_filename_from_url():
     assert filename_from_url("https://dl.example/d/Pride%20and%20Prejudice.epub?token=1") == "Pride and Prejudice.epub"
     assert filename_from_url("https://dl.example/") == ""
+
+
+def test_safe_filename_keeps_extension_when_long():
+    name = safe_filename("y" * 300 + ".epub")
+    assert len(name) == 200
+    assert name.endswith(".epub")
+
+
+def test_split_info():
+    from bookfetch.sources.annas import split_info
+
+    assert split_info("English [en] · EPUB · 0.3MB · 1998 · 📘 Book (fiction)") == {
+        "language": "English [en]",
+        "extension": "epub",
+        "size": "0.3MB",
+        "year": "1998",
+    }
+    assert split_info("") == {"language": "", "extension": "", "size": "", "year": ""}

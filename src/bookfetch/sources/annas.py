@@ -1,4 +1,4 @@
-"""Anna's Archive client: login, search page parsing, and the member download API.
+"""Anna's Archive: login, search page parsing, and the member download API.
 
 Search pages sit behind a bot check that lets logged-in members through, so the
 client logs in with the secret key first and keeps the session cookie for the run.
@@ -16,29 +16,42 @@ import re
 import urllib.error
 import urllib.parse
 import urllib.request
+from collections.abc import Mapping
 from pathlib import Path
 
+from ..common import (
+    DOWNLOAD_TIMEOUT,
+    TIMEOUT,
+    USER_AGENT,
+    BookfetchError,
+    MissingConfigError,
+    env_list,
+    filename_from_url,
+    read_secret_file,
+    result,
+    safe_filename,
+)
+
+NAME = "annas"
 # Official domains as listed on Wikipedia and the site's own footer. Override
 # with ANNAS_DOMAINS (comma-separated) when they change; check Wikipedia first.
 DEFAULT_DOMAINS = ["annas-archive.pk", "annas-archive.gl", "annas-archive.gd"]
-USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36"
-TIMEOUT = 60
-DOWNLOAD_TIMEOUT = 600
 RESULT_SPLIT = '<div class="flex  pt-3 pb-3 border-b'
+MD5_RE = re.compile(r"[0-9a-f]{32}")
 
 
-class AnnasError(Exception):
-    """A user-facing error; the CLI prints it and exits non-zero."""
+class AnnasError(BookfetchError):
+    """An Anna's Archive site or API error."""
 
 
-class MissingKeyError(AnnasError):
+class MissingKeyError(MissingConfigError):
     """The secret key could not be loaded."""
 
 
-def load_key(key_file: str | None = None, env: dict[str, str] | None = None) -> str:
+def load_key(key_file: str | None = None, env: Mapping[str, str] | None = None) -> str:
     """Return the member secret key.
 
-    Precedence: an explicit ``key_file`` (the --key-file flag), then the
+    Precedence: an explicit ``key_file`` (the --annas-key-file flag), then the
     ANNAS_KEY environment variable, then the file named by ANNAS_KEY_FILE.
     """
     env = os.environ if env is None else env
@@ -50,27 +63,18 @@ def load_key(key_file: str | None = None, env: dict[str, str] | None = None) -> 
     path = env.get("ANNAS_KEY_FILE", "").strip()
     if path:
         return _read_key_file(path)
-    raise MissingKeyError("no key: set ANNAS_KEY, set ANNAS_KEY_FILE, or pass --key-file")
+    raise MissingKeyError("no key: set ANNAS_KEY, set ANNAS_KEY_FILE, or pass --annas-key-file")
 
 
 def _read_key_file(path: str) -> str:
     try:
-        key = Path(path).expanduser().read_text().strip()
-    except OSError as e:
-        raise MissingKeyError(f"cannot read key file {path}: {e.strerror or e}") from None
-    if not key:
-        raise MissingKeyError(f"key file {path} is empty")
-    return key
+        return read_secret_file(path, "key")
+    except MissingConfigError as e:
+        raise MissingKeyError(str(e)) from None
 
 
-def domains(env: dict[str, str] | None = None) -> list[str]:
-    env = os.environ if env is None else env
-    value = env.get("ANNAS_DOMAINS")
-    if value:
-        parsed = [d.strip() for d in value.split(",") if d.strip()]
-        if parsed:
-            return parsed
-    return list(DEFAULT_DOMAINS)
+def domains(env: Mapping[str, str] | None = None) -> list[str]:
+    return env_list("ANNAS_DOMAINS", DEFAULT_DOMAINS, env)
 
 
 def clean(s: str) -> str:
@@ -108,18 +112,6 @@ def parse_quota(page: str) -> dict[str, str]:
         "membership": clean(m.group(1)) if m else "?",
         "fast_downloads_used": clean(u.group(1)) if u else "?",
     }
-
-
-def safe_filename(name: str, fallback: str = "download") -> str:
-    """Replace characters that are unsafe in file names and cap the length."""
-    name = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", name).strip()
-    if name in ("", ".", ".."):
-        name = fallback
-    return name[:200]
-
-
-def filename_from_url(url: str) -> str:
-    return urllib.parse.unquote(url.split("/")[-1].split("?")[0])
 
 
 class Session:
@@ -206,3 +198,59 @@ class Session:
         except (OSError, http.client.HTTPException) as e:
             raise AnnasError(f"download failed: {e}") from None
         return path, data
+
+
+def split_info(info: str) -> dict[str, str]:
+    """Pull language, extension, size and year out of a result's summary line."""
+    out = {"language": "", "extension": "", "size": "", "year": ""}
+    for part in (p.strip() for p in info.split("·")):
+        if not out["language"] and re.fullmatch(r".+\[[a-z]{2,3}(-[A-Za-z]+)?\]", part):
+            out["language"] = part
+        elif not out["extension"] and re.fullmatch(r"[A-Z0-9]{2,5}", part):
+            out["extension"] = part.lower()
+        elif not out["size"] and re.fullmatch(r"[\d.]+\s?[KMG]B", part):
+            out["size"] = part
+        elif not out["year"] and re.fullmatch(r"\d{4}", part):
+            out["year"] = part
+    return out
+
+
+class Source:
+    """Anna's Archive in the common source shape."""
+
+    name = NAME
+    id_help = "MD5"
+
+    def __init__(self, session: Session):
+        self.session = session
+        self.downloads_left = None
+
+    @classmethod
+    def from_env(cls, env: Mapping[str, str] | None = None, key_file: str | None = None) -> Source:
+        return cls(Session(load_key(key_file, env), domain_list=domains(env)))
+
+    def search(self, query: str, ext: str | None = None, lang: str | None = None, limit: int = 10) -> list[dict]:
+        rows = self.session.search(query, ext=ext, lang=lang, limit=limit)
+        return [
+            result(
+                NAME,
+                r["md5"],
+                title=r["title"],
+                author=r["author"],
+                publisher=r["publisher"],
+                **split_info(r["info"]),
+                extra={"info": r["info"]},
+            )
+            for r in rows
+        ]
+
+    def download(self, id: str, out: str | Path = ".", name: str | None = None) -> Path:
+        md5 = id.strip().lower()
+        if not MD5_RE.fullmatch(md5):
+            raise AnnasError(f"not an MD5: {id!r}")
+        path, data = self.session.download(md5, out=out, name=name)
+        self.downloads_left = (data.get("account_fast_download_info") or {}).get("downloads_left")
+        return path
+
+    def quota(self) -> dict:
+        return self.session.quota()

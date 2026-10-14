@@ -3,8 +3,8 @@ revision = 5
 requires-python = ">=3.11"
 
 [[package]]
-name = "annas-archive-cli"
-version = "0.1.0"
+name = "bookfetch-cli"
+version = "0.2.0"
 source = { editable = "." }
 
 [package.optional-dependencies]

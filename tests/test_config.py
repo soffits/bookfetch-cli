@@ -1,6 +1,6 @@
 import pytest
 
-from annas_archive_cli.client import DEFAULT_DOMAINS, MissingKeyError, domains, load_key
+from bookfetch.sources.annas import DEFAULT_DOMAINS, MissingKeyError, domains, load_key
 
 
 def test_domains_default():
