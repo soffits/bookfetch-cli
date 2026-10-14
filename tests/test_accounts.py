@@ -102,7 +102,7 @@ def test_missing_default_file_is_fine_but_explicit_is_not(tmp_path):
 @pytest.mark.parametrize(
     "text, message",
     [
-        ("[gutenberg.accounts.x]\nkey = 'a'\n", "unknown source"),
+        ("[nope.accounts.x]\nkey = 'a'\n", "unknown source"),
         ("[annas.accounts.x]\npassword = 'a'\n", "unknown setting 'password'"),
         ("[annas.accounts.env]\nkey = 'a'\n", "reserved"),
         ("[annas]\ndomains = 'a.example'\n", "list of strings"),

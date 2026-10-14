@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xmlns:opds="http://opds-spec.org/2010/catalog" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/">
+<id>http://www.gutenberg.org/ebooks/search.opds/?query=pride+prejudice</id>
+<updated>2026-01-01T00:00:00Z</updated>
+<title>Books: pride prejudice</title>
+<link rel="self" type="application/atom+xml;profile=opds-catalog" href="/ebooks/search.opds/?query=pride+prejudice"/>
+<link rel="alternate" type="text/html" href="/ebooks/search/?query=pride+prejudice"/>
+<opensearch:itemsPerPage>25</opensearch:itemsPerPage>
+<opensearch:startIndex>1</opensearch:startIndex>
+<entry>
+<updated>2026-01-01T00:00:00Z</updated>
+<id>https://www.gutenberg.org/ebooks/authors/search.opds/?query=pride+prejudice</id>
+<title>Authors</title>
+<content type="text">Authors matching your query</content>
+<link type="application/atom+xml;profile=opds-catalog" rel="subsection" href="/ebooks/authors/search.opds/?query=pride+prejudice"/>
+</entry>
+<entry>
+<updated>2026-01-01T00:00:00Z</updated>
+<id>https://www.gutenberg.org/ebooks/1342.opds</id>
+<title>Pride and Prejudice</title>
+<content type="text">Jane Austen</content>
+<link type="application/atom+xml;profile=opds-catalog" rel="subsection" href="/ebooks/1342.opds"/>
+<link type="image/png" rel="http://opds-spec.org/image/thumbnail" href="data:image/png;base64,iVBORw0KGgo="/>
+</entry>
+<entry>
+<updated>2026-01-01T00:00:00Z</updated>
+<id>https://www.gutenberg.org/ebooks/10471.opds</id>
+<title>The World's Greatest Books — Volume 01 — Fiction</title>
+<content type="text">1267 downloads</content>
+<link type="application/atom+xml;profile=opds-catalog" rel="subsection" href="/ebooks/10471.opds"/>
+</entry>
+<entry>
+<updated>2026-01-01T00:00:00Z</updated>
+<id>https://www.gutenberg.org/ebooks/45186.opds</id>
+<title>Ylpeys ja ennakkoluulo (Finnish)</title>
+<content type="text">Jane Austen</content>
+<link type="application/atom+xml;profile=opds-catalog" rel="subsection" href="/ebooks/45186.opds"/>
+</entry>
+</feed>

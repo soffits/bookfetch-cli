@@ -131,7 +131,7 @@ def test_download_routes_by_prefix(monkeypatch, tmp_path, capsys):
     assert z.closed
 
 
-@pytest.mark.parametrize("target", ["12/ab", "gutenberg:1", "zlib:", ":abc"])
+@pytest.mark.parametrize("target", ["12/ab", "nope:1", "zlib:", ":abc"])
 def test_download_bad_target(monkeypatch, capsys, target):
     install(monkeypatch)
     with pytest.raises(SystemExit) as e:

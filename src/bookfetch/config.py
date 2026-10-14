@@ -27,6 +27,9 @@ from .common import Account, ConfigError, env_list
 from .sources import SOURCES
 
 ENV_ACCOUNT = "env"
+# Sources that work without an account get a built-in account with this name,
+# used after any configured ones.
+ANONYMOUS_ACCOUNT = "anonymous"
 _warned: set[str] = set()
 
 
@@ -81,17 +84,22 @@ def _parse(data: dict, path: Path) -> tuple[dict[str, list[Account]], dict[str, 
             raise ConfigError(f"{path}: [{source}] must be a table")
         module = SOURCES[source]
         for key, value in section.items():
-            if key == "domains":
+            if key == "domains" and module.DOMAINS_ENV:
                 domains[source] = _strings(value, f"{path}: {source}.domains")
             elif key != "accounts":
-                raise ConfigError(f"{path}: unknown setting {source}.{key} (expected accounts or domains)")
+                expected = "accounts or domains" if module.DOMAINS_ENV else "accounts" if module.ACCOUNT_FIELDS else "nothing"
+                raise ConfigError(f"{path}: unknown setting {source}.{key} (expected {expected})")
         table = section.get("accounts", {})
         if not isinstance(table, dict):
             raise ConfigError(f"{path}: {source}.accounts must be a table of accounts")
+        if table and not module.ACCOUNT_FIELDS:
+            raise ConfigError(f"{path}: {source} has no accounts; it works without one")
         for name, fields in table.items():
             where = f"{path}: [{source}.accounts.{name}]"
             if name == ENV_ACCOUNT:
                 raise ConfigError(f"{where}: the name '{ENV_ACCOUNT}' is reserved for the account from environment variables")
+            if name == ANONYMOUS_ACCOUNT:
+                raise ConfigError(f"{where}: the name '{ANONYMOUS_ACCOUNT}' is reserved for the built-in account without login")
             if not isinstance(fields, dict):
                 raise ConfigError(f"{where} must be a table")
             clean = {}
@@ -158,4 +166,6 @@ def load(
         if first and (first.fields or not others):
             config.accounts[name].append(first)
         config.accounts[name].extend(others)
+        if getattr(module, "ANONYMOUS", False):
+            config.accounts[name].append(Account(name, ANONYMOUS_ACCOUNT, "built in", {}))
     return config

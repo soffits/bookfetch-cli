@@ -1,5 +1,13 @@
-"""Book sources. Each module has a ``Source`` class with ``from_env``, ``search``, ``download`` and ``quota``."""
+"""Book sources. Each module has a ``Source`` class with ``from_account``, ``search``, ``download`` and ``quota``.
 
-from . import annas, zlib
+annas and zlib need accounts; the others are open sources that work without one
+(see ``base.OpenSource``).
+"""
 
-SOURCES = {"annas": annas, "zlib": zlib}
+from . import annas, gutenberg, zlib
+
+SOURCES = {
+    "annas": annas,
+    "zlib": zlib,
+    "gutenberg": gutenberg,
+}

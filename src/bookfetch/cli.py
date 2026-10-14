@@ -5,19 +5,24 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from concurrent.futures import ThreadPoolExecutor
 
 from . import __version__, config
 from .common import Account, BookfetchError, ConfigError, LoginError, MissingConfigError, QuotaExhaustedError
 from .sources import SOURCES
 
-DESCRIPTION = """Search and download books from Anna's Archive and Z-Library.
+DESCRIPTION = """Search and download books from Anna's Archive, Z-Library, Project Gutenberg,
+Standard Ebooks, Open Library (Internet Archive) and arXiv.
 
+Project Gutenberg, Standard Ebooks, Open Library and arXiv work without an
+account (built-in account 'anonymous'). Anna's Archive and Z-Library need one.
 Accounts come from environment variables (one account per source, named 'env')
 and from an optional TOML config file with any number of named accounts:
   annas  ANNAS_KEY or ANNAS_KEY_FILE (member secret key), ANNAS_DOMAINS
   zlib   ZLIB_EMAIL plus ZLIB_PASSWORD or ZLIB_PASSWORD_FILE, ZLIB_DOMAINS,
          BOOKFETCH_CDP_URL (a Chromium with remote debugging, needed for
          Z-Library search)
+  standardebooks  STANDARDEBOOKS_EMAIL (optional Patrons Circle email)
   config --config PATH, else BOOKFETCH_CONFIG, else
          $XDG_CONFIG_HOME/bookfetch/config.toml (~/.config/bookfetch/config.toml)
 
@@ -25,11 +30,16 @@ examples:
   bookfetch search "title author" --ext epub --lang en --limit 5
   bookfetch download annas:MD5 --out DIR [--name FILE] [--account NAME]
   bookfetch download zlib:ID/HASH --out DIR
+  bookfetch download gutenberg:1342 --out DIR
+  bookfetch download standardebooks:jane-austen/emma --out DIR
+  bookfetch download openlibrary:IDENTIFIER --out DIR
+  bookfetch download arxiv:1706.03762 --out DIR
   bookfetch quota
   bookfetch accounts
 """
 
-SOURCE_CHOICES = [*SOURCES, "all"]
+DEFAULT_LIMIT_ONE = 10
+DEFAULT_LIMIT_ALL = 5
 
 
 def add_common(p: argparse.ArgumentParser, top: bool) -> None:
@@ -40,6 +50,7 @@ def add_common(p: argparse.ArgumentParser, top: bool) -> None:
 
 
 def build_parser() -> argparse.ArgumentParser:
+    choices = [*SOURCES, "all"]
     p = argparse.ArgumentParser(prog="bookfetch", description=DESCRIPTION, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     p.add_argument("--annas-key-file", help="file holding the Anna's Archive member secret key (replaces the 'env' account)")
@@ -47,22 +58,26 @@ def build_parser() -> argparse.ArgumentParser:
     sub = p.add_subparsers(dest="cmd", required=True)
     sp = sub.add_parser("search", help="search and list candidates")
     sp.add_argument("query")
-    sp.add_argument("--source", choices=SOURCE_CHOICES, default="all", help="where to search (default: all configured)")
+    sp.add_argument("--source", choices=choices, default="all", help="where to search (default: all configured)")
     sp.add_argument("--ext", help="file type, e.g. epub, pdf")
     sp.add_argument("--lang", help="language code, e.g. en, zh")
-    sp.add_argument("--limit", type=int, default=10, help="results per source (default: 10)")
+    sp.add_argument(
+        "--limit", type=int, help=f"results per source (default: {DEFAULT_LIMIT_ALL} with all sources, {DEFAULT_LIMIT_ONE} with one)"
+    )
     sp.add_argument("--json", action="store_true", help="print results as JSON")
     add_common(sp, top=False)
-    dp = sub.add_parser("download", help="download one file (uses one download from the account's daily quota)")
-    dp.add_argument("target", metavar="SOURCE:ID", help="as printed by search, e.g. annas:MD5 or zlib:ID/HASH")
+    dp = sub.add_parser(
+        "download", help="download one file (with Anna's Archive and Z-Library this uses one download from the daily quota)"
+    )
+    dp.add_argument("target", metavar="SOURCE:ID", help="as printed by search, e.g. annas:MD5, zlib:ID/HASH, gutenberg:1342")
     dp.add_argument("--out", default=".", help="directory to save into (default: current)")
     dp.add_argument("--name", help="file name to save as")
     add_common(dp, top=False)
     qp = sub.add_parser("quota", help="show download usage for each account")
-    qp.add_argument("--source", choices=SOURCE_CHOICES, default="all")
+    qp.add_argument("--source", choices=choices, default="all")
     add_common(qp, top=False)
     ap = sub.add_parser("accounts", aliases=["config"], help="list configured accounts and where they come from (no secrets)")
-    ap.add_argument("--source", choices=SOURCE_CHOICES, default="all")
+    ap.add_argument("--source", choices=choices, default="all")
     add_common(ap, top=False)
     return p
 
@@ -148,33 +163,51 @@ def run_with_fallback(name: str, accounts: list[Account], cfg, action, fallback_
     raise AssertionError("no accounts")
 
 
-def for_each_source(selected: str, a: argparse.Namespace, cfg, action, fallback_on=(MissingConfigError, LoginError)) -> int:
+def for_each_source(selected: str, a: argparse.Namespace, cfg, action, fallback_on=(MissingConfigError, LoginError)) -> tuple[int, dict]:
     """Run ``action(source)`` for the selected sources, one account each.
 
-    With 'all', unconfigured sources are skipped with a note and a failing source
-    does not stop the others. Exit code: 0 if any source worked, 1 if all
-    configured sources failed, 2 if none was configured.
+    With several sources they run in parallel threads, so a slow source does not
+    hold up the others; results come back per source name, in source order.
+    Unconfigured sources are skipped with a note and a failing source does not
+    stop the others. Exit code: 0 if any source worked, 1 if all configured
+    sources failed, 2 if none was configured.
     """
     names = source_names(selected)
     chosen = accounts_for(cfg, names, a.account)
-    ok = failed = 0
+    active = []
     for name in names:
-        accounts = chosen[name]
-        if not accounts:
+        if chosen[name]:
+            active.append(name)
+        else:
             reason = not_configured(name, a.account)
             note(f"{name}: skipped, {reason}" if selected == "all" else f"{name}: {reason}")
-            continue
+
+    def run(name):
         try:
-            run_with_fallback(name, accounts, cfg, action, fallback_on)
-            ok += 1
+            return run_with_fallback(name, chosen[name], cfg, action, fallback_on)[2], None
         except AccountFailed as f:
-            note(f.message(name))
-            # A lone account that is merely unconfigured counts as "not configured".
-            if not (isinstance(f.error, MissingConfigError) and len(accounts) == 1):
-                failed += 1
+            return None, f
+
+    if len(active) > 1:
+        with ThreadPoolExecutor(max_workers=len(active)) as pool:
+            outcomes = dict(zip(active, pool.map(run, active), strict=True))
+    else:
+        outcomes = {name: run(name) for name in active}
+    ok = failed = 0
+    results = {}
+    for name in active:
+        value, f = outcomes[name]
+        if f is None:
+            results[name] = value
+            ok += 1
+            continue
+        note(f.message(name))
+        # A lone account that is merely unconfigured counts as "not configured".
+        if not (isinstance(f.error, MissingConfigError) and len(chosen[name]) == 1):
+            failed += 1
     if ok:
-        return 0
-    return 1 if failed else 2
+        return 0, results
+    return (1 if failed else 2), results
 
 
 def format_result(i: int, r: dict) -> str:
@@ -184,12 +217,9 @@ def format_result(i: int, r: dict) -> str:
 
 
 def cmd_search(a: argparse.Namespace, cfg) -> int:
-    rows: list[dict] = []
-
-    def action(source):
-        rows.extend(source.search(a.query, ext=a.ext, lang=a.lang, limit=a.limit))
-
-    code = for_each_source(a.source, a, cfg, action)
+    limit = a.limit if a.limit is not None else DEFAULT_LIMIT_ALL if a.source == "all" else DEFAULT_LIMIT_ONE
+    code, results = for_each_source(a.source, a, cfg, lambda source: source.search(a.query, ext=a.ext, lang=a.lang, limit=limit))
+    rows = [r for name in results for r in results[name]]
     if a.json:
         print(json.dumps(rows, ensure_ascii=False, indent=1))
     elif code == 0:
@@ -213,7 +243,9 @@ def cmd_download(a: argparse.Namespace, cfg) -> int:
         note(f.message(name))
         return 2 if isinstance(f.error, MissingConfigError) and len(accounts) == 1 else 1
     label = account.label if len(cfg.accounts[name]) > 1 else name
-    print(f"{path} ({path.stat().st_size} bytes); {label} downloads left today: {source.downloads_left}")
+    extra = getattr(source, "downloads_note", None)
+    left = f"{label}: {extra}" if extra else f"{label} downloads left today: {source.downloads_left}"
+    print(f"{path} ({path.stat().st_size} bytes); {left}")
     return 0
 
 
@@ -256,7 +288,10 @@ def cmd_accounts(a: argparse.Namespace, cfg) -> int:
         if not chosen[name]:
             print(f"  {'no account named ' + repr(a.account) if a.account else 'no accounts'}")
         for account in chosen[name]:
-            print(f"  {account.name}: from {account.origin}; {account.describe()}")
+            if account.name == config.ANONYMOUS_ACCOUNT:
+                print(f"  {account.name}: built in; no login")
+            else:
+                print(f"  {account.name}: from {account.origin}; {account.describe()}")
     return 0
 
 
