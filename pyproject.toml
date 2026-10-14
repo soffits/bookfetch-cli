@@ -4,15 +4,15 @@ build-backend = "hatchling.build"
 
 [project]
 name = "bookfetch-cli"
-version = "0.3.0"
-description = "Search and download books from Anna's Archive and Z-Library from the command line"
+version = "0.4.0"
+description = "Search and download books and papers from Anna's Archive, Z-Library, Project Gutenberg, Standard Ebooks, Open Library and arXiv"
 readme = "README.md"
 license = "MIT"
 authors = [{ name = "Sakina" }]
 maintainers = [{ name = "Sakina" }]
 requires-python = ">=3.11"
 dependencies = []
-keywords = ["annas-archive", "z-library", "books", "ebooks", "cli", "download"]
+keywords = ["annas-archive", "z-library", "project-gutenberg", "standard-ebooks", "open-library", "internet-archive", "arxiv", "opds", "books", "ebooks", "cli", "download"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Environment :: Console",

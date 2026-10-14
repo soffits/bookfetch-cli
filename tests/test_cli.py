@@ -156,4 +156,4 @@ def test_quota_all(monkeypatch, capsys):
 def test_version(capsys):
     with pytest.raises(SystemExit):
         cli.main(["--version"])
-    assert capsys.readouterr().out.strip() == "bookfetch 0.3.0"
+    assert capsys.readouterr().out.strip() == "bookfetch 0.4.0"
