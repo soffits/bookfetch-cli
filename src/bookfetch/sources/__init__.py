@@ -4,7 +4,7 @@ annas and zlib need accounts; the others are open sources that work without one
 (see ``base.OpenSource``).
 """
 
-from . import annas, gutenberg, openlibrary, standardebooks, zlib
+from . import annas, arxiv, gutenberg, openlibrary, standardebooks, zlib
 
 SOURCES = {
     "annas": annas,
@@ -12,4 +12,5 @@ SOURCES = {
     "gutenberg": gutenberg,
     "standardebooks": standardebooks,
     "openlibrary": openlibrary,
+    "arxiv": arxiv,
 }
