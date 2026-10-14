@@ -1,0 +1,40 @@
+{
+ "metadata": {
+  "identifier": "prideprejudicelend0000exam",
+  "mediatype": "texts",
+  "access-restricted-item": "true",
+  "collection": [
+   "inlibrary",
+   "printdisabled"
+  ]
+ },
+ "files": [
+  {
+   "name": "prideprejudicelend0000exam.epub",
+   "format": "EPUB",
+   "size": "100",
+   "private": "true"
+  },
+  {
+   "name": "prideprejudicelend0000exam.pdf",
+   "format": "Text PDF",
+   "size": "100",
+   "private": "true"
+  },
+  {
+   "name": "prideprejudicelend0000exam_lcp.epub",
+   "format": "LCP Encrypted EPUB",
+   "size": "100"
+  },
+  {
+   "name": "prideprejudicelend0000exam.lcpdf",
+   "format": "LCP Encrypted PDF",
+   "size": "100"
+  },
+  {
+   "name": "prideprejudicelend0000exam_encrypted.pdf",
+   "format": "ACS Encrypted PDF",
+   "size": "100"
+  }
+ ]
+}

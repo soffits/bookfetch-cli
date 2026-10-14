@@ -1,0 +1,32 @@
+{
+ "metadata": {
+  "identifier": "prideprejudice0000exam",
+  "mediatype": "texts",
+  "title": "Pride and prejudice",
+  "collection": "internetarchivebooks"
+ },
+ "files": [
+  {
+   "name": "prideprejudice0000exam_jp2.zip",
+   "format": "Single Page Processed JP2 ZIP",
+   "size": "90000000"
+  },
+  {
+   "name": "prideprejudice0000exam.pdf",
+   "format": "Text PDF",
+   "size": "16",
+   "md5": "MD5PDF"
+  },
+  {
+   "name": "prideprejudice0000exam.epub",
+   "format": "EPUB",
+   "size": "14",
+   "md5": "MD5EPUB"
+  },
+  {
+   "name": "prideprejudice0000exam_djvu.txt",
+   "format": "DjVuTXT",
+   "size": "12"
+  }
+ ]
+}

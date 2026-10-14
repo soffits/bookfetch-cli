@@ -4,11 +4,12 @@ annas and zlib need accounts; the others are open sources that work without one
 (see ``base.OpenSource``).
 """
 
-from . import annas, gutenberg, standardebooks, zlib
+from . import annas, gutenberg, openlibrary, standardebooks, zlib
 
 SOURCES = {
     "annas": annas,
     "zlib": zlib,
     "gutenberg": gutenberg,
     "standardebooks": standardebooks,
+    "openlibrary": openlibrary,
 }

@@ -1,0 +1,59 @@
+{
+ "responseHeader": {
+  "status": 0
+ },
+ "response": {
+  "numFound": 5,
+  "start": 0,
+  "docs": [
+   {
+    "identifier": "pride_and_prejudice_example_librivox",
+    "mediatype": "audio",
+    "format": [
+     "VBR MP3",
+     "Text PDF"
+    ]
+   },
+   {
+    "identifier": "prideprejudice0000exam",
+    "mediatype": "texts",
+    "format": [
+     "DjVuTXT",
+     "EPUB",
+     "Text PDF"
+    ],
+    "date": "1900",
+    "language": "eng",
+    "publisher": "London : T. Nelson",
+    "title": "Pride and prejudice"
+   },
+   {
+    "identifier": "prideprejudicelend0000exam",
+    "mediatype": "texts",
+    "access-restricted-item": "true",
+    "format": [
+     "EPUB",
+     "LCP Encrypted EPUB",
+     "Text PDF"
+    ]
+   },
+   {
+    "identifier": "emma_example_librivox",
+    "mediatype": "audio",
+    "format": [
+     "VBR MP3"
+    ]
+   },
+   {
+    "identifier": "emmaexample00aust",
+    "mediatype": "texts",
+    "format": [
+     "DjVuTXT",
+     "Text PDF"
+    ],
+    "date": "1896-01-01T00:00:00Z",
+    "language": "eng"
+   }
+  ]
+ }
+}

@@ -1,0 +1,21 @@
+{
+ "metadata": {
+  "identifier": "pride_and_prejudice_example_librivox",
+  "mediatype": "audio",
+  "collection": [
+   "librivoxaudio"
+  ]
+ },
+ "files": [
+  {
+   "name": "pride_01.mp3",
+   "format": "VBR MP3",
+   "size": "100"
+  },
+  {
+   "name": "pride.pdf",
+   "format": "Text PDF",
+   "size": "100"
+  }
+ ]
+}

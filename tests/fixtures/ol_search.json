@@ -1,0 +1,59 @@
+{
+ "numFound": 3,
+ "start": 0,
+ "docs": [
+  {
+   "key": "/works/OL1W",
+   "title": "Pride and Prejudice",
+   "author_name": [
+    "Jane Austen"
+   ],
+   "first_publish_year": 1813,
+   "language": [
+    "eng",
+    "fre"
+   ],
+   "ebook_access": "public",
+   "ia": [
+    "pride_and_prejudice_example_librivox",
+    "prideprejudice0000exam",
+    "prideprejudicelend0000exam"
+   ],
+   "availability": {
+    "status": "open",
+    "is_restricted": false,
+    "identifier": "prideprejudice0000exam"
+   }
+  },
+  {
+   "key": "/works/OL2W",
+   "title": "Pride and Prejudice and Monsters",
+   "author_name": [
+    "A. Parodist"
+   ],
+   "first_publish_year": 2009,
+   "ebook_access": "borrowable",
+   "ia": [
+    "prideprejudicemo0000exam"
+   ],
+   "availability": {
+    "status": "borrow_available",
+    "is_restricted": true,
+    "identifier": "prideprejudicemo0000exam"
+   }
+  },
+  {
+   "key": "/works/OL3W",
+   "title": "Emma",
+   "author_name": [
+    "Jane Austen"
+   ],
+   "first_publish_year": 1815,
+   "ebook_access": "public",
+   "ia": [
+    "emma_example_librivox",
+    "emmaexample00aust"
+   ]
+  }
+ ]
+}
