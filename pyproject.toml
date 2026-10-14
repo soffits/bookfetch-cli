@@ -1,0 +1,54 @@
+[build-system]
+requires = ["hatchling>=1.18"]
+build-backend = "hatchling.build"
+
+[project]
+name = "annas-archive-cli"
+version = "0.1.0"
+description = "Search and download from Anna's Archive with a member key"
+readme = "README.md"
+license = "MIT"
+authors = [{ name = "Sakina" }]
+maintainers = [{ name = "Sakina" }]
+requires-python = ">=3.11"
+dependencies = []
+keywords = ["annas-archive", "books", "ebooks", "cli", "download"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Internet :: WWW/HTTP",
+]
+
+[project.urls]
+Homepage = "https://github.com/soffits/annas-archive-cli"
+Repository = "https://github.com/soffits/annas-archive-cli"
+Issues = "https://github.com/soffits/annas-archive-cli/issues"
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.8"]
+
+[project.scripts]
+annas = "annas_archive_cli.cli:main"
+
+[tool.hatch.build.targets.sdist]
+include = ["/src", "/tests", "/skills", "/README.md", "/LICENSE", "/pyproject.toml"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/annas_archive_cli"]
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 140
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
