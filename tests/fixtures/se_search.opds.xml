@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<?xml-stylesheet href="https://standardebooks.org/feeds/opds/style" type="text/xsl"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:schema="http://schema.org/" xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/">
+	<id>https://standardebooks.org/feeds/opds/all?query=austen</id>
+	<link href="https://standardebooks.org/feeds/opds/all?query=austen" rel="self" type="application/atom+xml;profile=opds-catalog"/>
+	<link href="https://standardebooks.org/feeds/opds/all" rel="http://opds-spec.org/crawlable" type="application/atom+xml;profile=opds-catalog;kind=acquisition"/>
+	<link href="https://standardebooks.org/honeypot" rel="related" type="text/html"/>
+	<opensearch:totalResults>2</opensearch:totalResults>
+	<title>Search Results</title>
+	<updated>2026-01-01T00:00:00Z</updated>
+	<entry>
+		<id>https://standardebooks.org/ebooks/jane-austen/pride-and-prejudice</id>
+		<dc:identifier>https://standardebooks.org/ebooks/jane-austen/pride-and-prejudice</dc:identifier>
+		<title>Pride and Prejudice</title>
+		<author><name>Jane Austen</name><uri>https://standardebooks.org/ebooks/jane-austen</uri></author>
+		<published>2014-05-25T00:00:00Z</published>
+		<dc:issued>2014-05-25T00:00:00Z</dc:issued>
+		<updated>2026-01-01T00:00:00Z</updated>
+		<dc:language>en-GB</dc:language>
+		<dc:publisher>Standard Ebooks</dc:publisher>
+		<link href="https://standardebooks.org/ebooks/jane-austen/pride-and-prejudice/downloads/cover.jpg" rel="http://opds-spec.org/image" type="image/jpeg"/>
+		<link href="https://standardebooks.org/ebooks/jane-austen/pride-and-prejudice" rel="alternate" type="application/xhtml+xml"/>
+		<link href="https://standardebooks.org/ebooks/jane-austen/pride-and-prejudice/downloads/jane-austen_pride-and-prejudice.epub?source=feed" length="831959" rel="http://opds-spec.org/acquisition/open-access" title="Recommended compatible epub" type="application/epub+zip"/>
+		<link href="https://standardebooks.org/ebooks/jane-austen/pride-and-prejudice/downloads/jane-austen_pride-and-prejudice_advanced.epub?source=feed" length="823296" rel="http://opds-spec.org/acquisition/open-access" title="Advanced epub" type="application/epub+zip"/>
+		<link href="https://standardebooks.org/ebooks/jane-austen/pride-and-prejudice/downloads/jane-austen_pride-and-prejudice.kepub.epub?source=feed" length="802527" rel="http://opds-spec.org/acquisition/open-access" title="Kobo Kepub epub" type="application/kepub+zip"/>
+		<link href="https://standardebooks.org/ebooks/jane-austen/pride-and-prejudice/downloads/jane-austen_pride-and-prejudice.azw3?source=feed" length="975248" rel="http://opds-spec.org/acquisition/open-access" title="Amazon Kindle azw3" type="application/x-mobipocket-ebook"/>
+	</entry>
+	<entry>
+		<id>https://standardebooks.org/ebooks/leo-tolstoy/the-death-of-ivan-ilyich/louise-maude_aylmer-maude</id>
+		<title>The Death of Ivan Ilyich</title>
+		<author><name>Leo Tolstoy</name></author>
+		<contributor><name>Louise Maude</name></contributor>
+		<dc:issued>2020-03-01T00:00:00Z</dc:issued>
+		<dc:language>en-GB</dc:language>
+		<link href="https://standardebooks.org/ebooks/leo-tolstoy/the-death-of-ivan-ilyich/louise-maude_aylmer-maude/downloads/leo-tolstoy_the-death-of-ivan-ilyich_louise-maude_aylmer-maude.epub?source=feed" length="300000" rel="http://opds-spec.org/acquisition/open-access" title="Recommended compatible epub" type="application/epub+zip"/>
+	</entry>
+</feed>
