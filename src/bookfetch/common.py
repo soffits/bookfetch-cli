@@ -18,7 +18,57 @@ class BookfetchError(Exception):
 
 
 class MissingConfigError(BookfetchError):
-    """A source is not configured (no key, no account)."""
+    """A source or account is not configured (no key, no account, unreadable secret file)."""
+
+
+class ConfigError(BookfetchError):
+    """The config file or the account selection is invalid."""
+
+
+class LoginError(BookfetchError):
+    """An account could not log in or is not allowed to download (no membership)."""
+
+
+class QuotaExhaustedError(BookfetchError):
+    """An account has no downloads left today."""
+
+
+class Account:
+    """One configured account for one source.
+
+    ``fields`` holds the source's settings as given (for example ``key_file`` or
+    ``email``). Secret values never appear in ``repr`` or ``describe``.
+    """
+
+    def __init__(self, source: str, name: str, origin: str, fields: Mapping[str, str], secret_fields: tuple[str, ...] = ()):
+        self.source = source
+        self.name = name
+        self.origin = origin
+        self.fields = dict(fields)
+        self.secret_fields = secret_fields
+
+    @property
+    def label(self) -> str:
+        return f"{self.source}/{self.name}"
+
+    def __repr__(self) -> str:
+        return f"Account({self.label!r}, origin={self.origin!r})"
+
+    def get(self, field: str) -> str:
+        return self.fields.get(field, "").strip()
+
+    def secret(self, field: str, what: str) -> str:
+        """The secret ``field`` given inline, else read from ``<field>_file``; empty if neither is set."""
+        value = self.fields.get(field, "").strip()
+        if value:
+            return value
+        path = self.get(f"{field}_file")
+        return read_secret_file(path, what) if path else ""
+
+    def describe(self) -> str:
+        """The account's settings with secret values replaced by 'set'."""
+        parts = [f"{k} set" if k in self.secret_fields else f"{k} {v}" for k, v in self.fields.items() if v]
+        return ", ".join(parts) or "no settings"
 
 
 def read_secret_file(path: str, what: str) -> str:

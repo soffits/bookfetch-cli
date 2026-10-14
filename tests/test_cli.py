@@ -3,7 +3,7 @@ import json
 import pytest
 
 from bookfetch import cli
-from bookfetch.common import MissingConfigError, result
+from bookfetch.common import result
 from bookfetch.sources import annas, zlib
 from bookfetch.sources.zlib import ZlibError
 
@@ -41,16 +41,21 @@ class StubSource:
 
 
 def install(monkeypatch, **stubs):
-    """stubs: source name -> StubSource or an exception raised by from_env."""
-    for name, module in (("annas", annas), ("zlib", zlib)):
-        stub = stubs.get(name, MissingConfigError("not configured"))
+    """stubs: source name -> StubSource or an exception raised by from_account.
 
-        def from_env(cls, env=None, key_file=None, stub=stub):
+    Each configured source gets an 'env' account from a fake environment variable.
+    """
+    for name, module in (("annas", annas), ("zlib", zlib)):
+        stub = stubs.get(name)
+        if stub is not None:
+            monkeypatch.setenv("ANNAS_KEY" if name == "annas" else "ZLIB_EMAIL", "x")
+
+        def from_account(cls, account, config, browser=True, stub=stub):
             if isinstance(stub, Exception):
                 raise stub
             return stub
 
-        monkeypatch.setattr(module.Source, "from_env", classmethod(from_env))
+        monkeypatch.setattr(module.Source, "from_account", classmethod(from_account))
 
 
 ROW_A = result("annas", "0" * 32, title="Book A", author="Author", extension="epub", size="1MB", language="English [en]", year="1900")
@@ -106,7 +111,7 @@ def test_nothing_configured_exit_2(monkeypatch, capsys):
     install(monkeypatch)
     assert cli.main(["search", "book"]) == 2
     assert cli.main(["search", "book", "--source", "annas"]) == 2
-    assert "annas: not configured" in capsys.readouterr().err
+    assert "annas: no key: set ANNAS_KEY" in capsys.readouterr().err
 
 
 def test_no_results(monkeypatch, capsys):
@@ -144,11 +149,11 @@ def test_quota_all(monkeypatch, capsys):
     install(monkeypatch, annas=StubSource("annas", error=annas.AnnasError("login failed: x")), zlib=StubSource("zlib"))
     assert cli.main(["quota"]) == 0
     out, err = capsys.readouterr()
-    assert out == "zlib: downloads today: 1, downloads limit: 10\n"
-    assert "annas: login failed" in err
+    assert out == "annas/env: error: login failed: x\nzlib/env: downloads today: 1, downloads limit: 10\n"
+    assert err == ""
 
 
 def test_version(capsys):
     with pytest.raises(SystemExit):
         cli.main(["--version"])
-    assert capsys.readouterr().out.strip() == "bookfetch 0.2.0"
+    assert capsys.readouterr().out.strip() == "bookfetch 0.3.0"

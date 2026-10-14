@@ -55,9 +55,8 @@ def session(routes, login_ok=True, domain_list=("a.example",)):
 
 def use_session(monkeypatch, s):
     """Make the CLI use ``s`` for Anna's Archive and leave Z-Library unconfigured."""
-    monkeypatch.setattr(annas.Source, "from_env", classmethod(lambda cls, env=None, key_file=None: cls(s)))
-    for name in ("ZLIB_EMAIL", "ZLIB_PASSWORD", "ZLIB_PASSWORD_FILE", "BOOKFETCH_CDP_URL"):
-        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setattr(annas.Source, "from_account", classmethod(lambda cls, account, config, browser=True: cls(s)))
+    monkeypatch.setenv("ANNAS_KEY", "x")
 
 
 def http_error(code, body):
@@ -171,7 +170,7 @@ def test_cli_quota(monkeypatch, capsys):
     s, _ = session({"/account/": (FIXTURES / "account.html").read_bytes()})
     use_session(monkeypatch, s)
     assert cli.main(["quota"]) == 0
-    assert capsys.readouterr().out == "annas: membership: Example Tier, fast downloads used: 3 / 50\n"
+    assert capsys.readouterr().out == "annas/env: membership: Example Tier, fast downloads used: 3 / 50\n"
 
 
 def test_cli_missing_key_exit_code(monkeypatch, capsys):

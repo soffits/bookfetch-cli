@@ -26,8 +26,11 @@ from ..common import (
     DOWNLOAD_TIMEOUT,
     TIMEOUT,
     USER_AGENT,
+    Account,
     BookfetchError,
+    LoginError,
     MissingConfigError,
+    QuotaExhaustedError,
     env_list,
     filename_from_disposition,
     filename_from_url,
@@ -40,6 +43,10 @@ NAME = "zlib"
 # The official domain per Wikipedia's Z-Library article, which warns about many
 # fraudulent copies. Override with ZLIB_DOMAINS (comma-separated).
 DEFAULT_DOMAINS = ["z-lib.sk"]
+DOMAINS_ENV = "ZLIB_DOMAINS"
+ACCOUNT_FIELDS = ("email", "password", "password_file")
+SECRET_FIELDS = ("password",)
+NOT_CONFIGURED = "not configured: set ZLIB_EMAIL and ZLIB_PASSWORD or ZLIB_PASSWORD_FILE, or add an account to the config file"
 ID_RE = re.compile(r"(\d+)/([0-9A-Za-z]+)")
 BOT_WALL = (
     "Z-Library's browser check blocked the request; search and downloads need the browser transport: "
@@ -54,6 +61,14 @@ LANGUAGES = {
 
 class ZlibError(BookfetchError):
     """A Z-Library site or API error."""
+
+
+class ZlibLoginError(ZlibError, LoginError):
+    """The login was rejected."""
+
+
+class ZlibQuotaError(ZlibError, QuotaExhaustedError):
+    """The account has used today's downloads."""
 
 
 class Credentials:
@@ -80,6 +95,40 @@ def load_credentials(env: Mapping[str, str] | None = None) -> Credentials | None
     if not password:
         raise MissingConfigError("no password: set ZLIB_PASSWORD or ZLIB_PASSWORD_FILE")
     return Credentials(email, password)
+
+
+def env_account(env: Mapping[str, str] | None = None) -> Account | None:
+    """The account defined by ZLIB_EMAIL and ZLIB_PASSWORD / ZLIB_PASSWORD_FILE.
+
+    With only BOOKFETCH_CDP_URL set, an account without settings stands for
+    whoever is logged in to Z-Library in that browser.
+    """
+    env = os.environ if env is None else env
+    names = ("ZLIB_EMAIL", "ZLIB_PASSWORD", "ZLIB_PASSWORD_FILE")
+    fields = {"email": env.get(names[0], "").strip(), "password": env.get(names[1], ""), "password_file": env.get(names[2], "").strip()}
+    used = [n for n, v in zip(names, fields.values(), strict=True) if v.strip()]
+    if used:
+        return Account(NAME, "env", f"environment ({', '.join(used)})", {k: v for k, v in fields.items() if v.strip()}, SECRET_FIELDS)
+    if env.get("BOOKFETCH_CDP_URL", "").strip():
+        return Account(NAME, "env", "environment (browser session at BOOKFETCH_CDP_URL)", {}, SECRET_FIELDS)
+    return None
+
+
+def account_credentials(account: Account) -> Credentials | None:
+    """Credentials for an account; None for a browser-session-only account."""
+    email = account.get("email")
+    password = account.secret("password", "password")
+    if not email and not password:
+        return None
+    if not email:
+        raise MissingConfigError(f"{account.label}: no email")
+    if not password:
+        raise MissingConfigError(f"{account.label}: no password (set password or password_file)")
+    return Credentials(email, password)
+
+
+def is_limit_error(message: str) -> bool:
+    return "limit" in message.lower()
 
 
 def domains(env: Mapping[str, str] | None = None) -> list[str]:
@@ -261,16 +310,23 @@ class Client:
         if self.logged_in:
             return
         if self.transport.browser:
+            # The browser keeps one Z-Library session. Use it if it belongs to
+            # this account (or no account was given); otherwise log in again.
             try:
-                self.call("GET", "/eapi/user/profile")
-                self.logged_in = True
-                return
+                user = self.call("GET", "/eapi/user/profile").get("user") or {}
+                email = str(user.get("email") or "").strip().lower()
+                if not self.credentials or email == self.credentials.email.strip().lower():
+                    self.logged_in = True
+                    return
             except ZlibError:
                 pass  # not logged in in that browser yet
         if not self.credentials:
             raise MissingConfigError("not logged in to Z-Library: set ZLIB_EMAIL and ZLIB_PASSWORD or ZLIB_PASSWORD_FILE")
         form = [("email", self.credentials.email), ("password", self.credentials.password)]
-        self.call("POST", "/eapi/user/login", form, what="login")
+        try:
+            self.call("POST", "/eapi/user/login", form, what="login")
+        except ZlibError as e:
+            raise ZlibLoginError(str(e)) from None
         self.logged_in = True
 
     def profile(self) -> dict:
@@ -284,7 +340,12 @@ class Client:
 
     def file_info(self, book_id: str, book_hash: str) -> dict:
         self.login()
-        info = self.call("GET", f"/eapi/book/{book_id}/{book_hash}/file", what="file lookup").get("file") or {}
+        try:
+            info = self.call("GET", f"/eapi/book/{book_id}/{book_hash}/file", what="file lookup").get("file") or {}
+        except ZlibError as e:
+            if is_limit_error(str(e)):
+                raise ZlibQuotaError(str(e)) from None
+            raise
         if not info.get("downloadLink"):
             raise ZlibError("file lookup: no download link (daily limit reached or file unavailable)")
         return info
@@ -333,11 +394,39 @@ class Source:
         transport = BrowserTransport(cdp, domain) if cdp else HttpTransport(domain)
         return cls(Client(transport, credentials))
 
+    @classmethod
+    def from_account(cls, account: Account, config, browser: bool = True) -> Source:
+        """``config`` supplies ``domains(source)`` and ``env`` (see bookfetch.config.Config).
+
+        With ``browser=False`` an account with credentials uses plain HTTP even when
+        BOOKFETCH_CDP_URL is set; that is enough for login and the profile, and it
+        leaves the browser's own Z-Library session alone.
+        """
+        credentials = account_credentials(account)
+        cdp = config.env.get("BOOKFETCH_CDP_URL", "").strip()
+        if not credentials and not cdp:
+            raise MissingConfigError(f"{account.label}: not configured: set email and password or password_file")
+        domain = config.domains(NAME)[0]
+        use_browser = bool(cdp) and (browser or not credentials)
+        transport = BrowserTransport(cdp, domain) if use_browser else HttpTransport(domain)
+        return cls(Client(transport, credentials))
+
+    def check_quota(self) -> None:
+        """Raise ZlibQuotaError if today's downloads are used up (costs no download)."""
+        user = self.client.profile()
+        try:
+            today, limit = int(user["downloads_today"]), int(user["downloads_limit"])
+        except (KeyError, TypeError, ValueError):
+            return
+        if today >= limit:
+            raise ZlibQuotaError(f"no downloads left today ({today} of {limit} used)")
+
     def search(self, query: str, ext: str | None = None, lang: str | None = None, limit: int = 10) -> list[dict]:
         return [to_result(b) for b in self.client.search(query, ext=ext, lang=lang, limit=limit)]
 
     def download(self, id: str, out: str | Path = ".", name: str | None = None) -> Path:
         book_id, book_hash = parse_id(id)
+        self.check_quota()
         info = self.client.file_info(book_id, book_hash)
         data, served_name = self.client.fetch(info["downloadLink"])
         fallback = f"{book_id}.{info.get('extension') or 'bin'}"

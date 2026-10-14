@@ -23,8 +23,11 @@ from ..common import (
     DOWNLOAD_TIMEOUT,
     TIMEOUT,
     USER_AGENT,
+    Account,
     BookfetchError,
+    LoginError,
     MissingConfigError,
+    QuotaExhaustedError,
     env_list,
     filename_from_url,
     read_secret_file,
@@ -36,6 +39,10 @@ NAME = "annas"
 # Official domains as listed on Wikipedia and the site's own footer. Override
 # with ANNAS_DOMAINS (comma-separated) when they change; check Wikipedia first.
 DEFAULT_DOMAINS = ["annas-archive.pk", "annas-archive.gl", "annas-archive.gd"]
+DOMAINS_ENV = "ANNAS_DOMAINS"
+ACCOUNT_FIELDS = ("key", "key_file")
+SECRET_FIELDS = ("key",)
+NOT_CONFIGURED = "no key: set ANNAS_KEY, set ANNAS_KEY_FILE, pass --annas-key-file, or add an account to the config file"
 RESULT_SPLIT = '<div class="flex  pt-3 pb-3 border-b'
 MD5_RE = re.compile(r"[0-9a-f]{32}")
 
@@ -46,6 +53,36 @@ class AnnasError(BookfetchError):
 
 class MissingKeyError(MissingConfigError):
     """The secret key could not be loaded."""
+
+
+class AnnasLoginError(AnnasError, LoginError):
+    """The key was rejected or no domain was reachable."""
+
+
+class NoDownloadsLeftError(AnnasError, QuotaExhaustedError):
+    """The account has used today's fast downloads."""
+
+
+def env_account(env: Mapping[str, str] | None = None, key_file: str | None = None) -> Account | None:
+    """The account defined by ANNAS_KEY / ANNAS_KEY_FILE, or by the --annas-key-file flag."""
+    env = os.environ if env is None else env
+    if key_file:
+        return Account(NAME, "env", "--annas-key-file", {"key_file": key_file}, SECRET_FIELDS)
+    fields = {"key": env.get("ANNAS_KEY", "").strip(), "key_file": env.get("ANNAS_KEY_FILE", "").strip()}
+    if not any(fields.values()):
+        return None
+    names = " and ".join(var for var, k in (("ANNAS_KEY", "key"), ("ANNAS_KEY_FILE", "key_file")) if fields[k])
+    return Account(NAME, "env", f"environment ({names})", {k: v for k, v in fields.items() if v}, SECRET_FIELDS)
+
+
+def account_key(account: Account) -> str:
+    try:
+        key = account.secret("key", "key")
+    except MissingConfigError as e:
+        raise MissingKeyError(str(e)) from None
+    if not key:
+        raise MissingKeyError(f"{account.label}: no key (set key or key_file)")
+    return key
 
 
 def load_key(key_file: str | None = None, env: Mapping[str, str] | None = None) -> str:
@@ -115,6 +152,9 @@ def parse_quota(page: str) -> dict[str, str]:
 
 
 class Session:
+    def __repr__(self) -> str:  # never show the key
+        return f"Session(base={self.base!r})"
+
     def __init__(self, key: str, opener: urllib.request.OpenerDirector | None = None, domain_list: list[str] | None = None):
         self.key = key
         self.jar = http.cookiejar.CookieJar()
@@ -141,7 +181,7 @@ class Session:
                 errors.append(f"{d}: key rejected")
             except (OSError, http.client.HTTPException) as e:  # network or HTTP error; try the next domain
                 errors.append(f"{d}: {e}")
-        raise AnnasError("login failed: " + "; ".join(errors))
+        raise AnnasLoginError("login failed: " + "; ".join(errors))
 
     def get(self, path: str) -> str:
         if not self.base:
@@ -181,6 +221,10 @@ class Session:
             raise AnnasError("API error: response was not JSON") from None
         if not isinstance(data, dict) or not data.get("download_url"):
             error = data.get("error") if isinstance(data, dict) else None
+            if error in ("Invalid secret key", "Not a member"):
+                raise AnnasLoginError(f"API error: {error}")
+            if error and "no downloads left" in str(error).lower():
+                raise NoDownloadsLeftError(f"API error: {error}")
             raise AnnasError(f"API error: {error or 'no download_url'}")
         return data
 
@@ -228,6 +272,11 @@ class Source:
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None, key_file: str | None = None) -> Source:
         return cls(Session(load_key(key_file, env), domain_list=domains(env)))
+
+    @classmethod
+    def from_account(cls, account: Account, config, browser: bool = True) -> Source:
+        """``config`` supplies ``domains(source)`` (see bookfetch.config.Config)."""
+        return cls(Session(account_key(account), domain_list=config.domains(NAME)))
 
     def search(self, query: str, ext: str | None = None, lang: str | None = None, limit: int = 10) -> list[dict]:
         rows = self.session.search(query, ext=ext, lang=lang, limit=limit)

@@ -5,12 +5,14 @@ description: "Use when finding or downloading a book or paper from Anna's Archiv
 
 # Books via the `bookfetch` CLI
 
-`bookfetch` searches Anna's Archive and Z-Library and downloads files with the user's own accounts. Configuration comes only from environment variables (`ANNAS_KEY_FILE`, `ZLIB_EMAIL`, `ZLIB_PASSWORD_FILE`, `BOOKFETCH_CDP_URL`, ...); see the README. Never print, echo, or paste a key, password, or cookie; point the tool at files instead.
+`bookfetch` searches Anna's Archive and Z-Library and downloads files with the user's own accounts. Accounts come from environment variables (`ANNAS_KEY_FILE`, `ZLIB_EMAIL`, `ZLIB_PASSWORD_FILE`, `BOOKFETCH_CDP_URL`, ...), which define an account named `env`, and from an optional TOML config file (`--config`, `BOOKFETCH_CONFIG`, or `~/.config/bookfetch/config.toml`) that can hold several named accounts per source; see the README. Never print, echo, or paste a key, password, or cookie; point the tool at files instead.
 
 ```bash
 bookfetch search "title author" [--source annas|zlib|all] [--ext epub|pdf] [--lang en] [--limit 5] [--json]
 bookfetch download SOURCE:ID --out DIR [--name FILE]
 bookfetch quota [--source annas|zlib|all]
+bookfetch accounts            # configured accounts and where they come from; no secrets
+# any command: --account NAME (use only that account), --config PATH
 ```
 
 ## Workflow
@@ -20,9 +22,13 @@ bookfetch quota [--source annas|zlib|all]
 3. Download only the chosen id, passing it exactly as printed (`annas:MD5` or `zlib:ID/HASH`), into a directory the user expects.
 4. Check the file: an EPUB is a zip whose `mimetype` entry is `application/epub+zip`; a PDF starts with `%PDF`. If it's HTML or tiny, the download failed; say so.
 
+## Accounts
+
+Run `bookfetch accounts` to see which accounts exist. Without `--account`, search uses each source's first account and moves to the next only if login fails; download moves to the next account only if the first has no downloads left today or can't log in, and prints which account it used (`annas/spare downloads left today: ...`). Use `--account NAME` when the user wants a specific account; then there is no fallback. Only use accounts the user owns or may use.
+
 ## Quota
 
-Every `download` spends one download from that source's daily allowance, even if the transfer fails afterwards. Never call `download` to test or probe. Run `bookfetch quota` before a batch.
+Every `download` spends one download from that source's daily allowance, even if the transfer fails afterwards. Never call `download` to test or probe. Run `bookfetch quota` before a batch; it prints one line per account (`source/account: ...`), and a broken account shows `error: ...` without hiding the others.
 
 - Anna's Archive: fast downloads per day depend on the membership tier.
 - Z-Library: free accounts get 10 downloads per day.
