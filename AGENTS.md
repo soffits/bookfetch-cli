@@ -48,3 +48,4 @@ uv run pytest
 - If a site's responses change, update the parser and the synthetic fixture together.
 - A new source is a new module in `sources/` with the same `Source` interface, added to `SOURCES`. Sources that work without an account set `ANONYMOUS = True` and usually subclass `OpenSource`. No plugin framework.
 - Repository text is English only. Commit messages use Conventional Commits. License is MIT.
+- PR titles are Conventional Commit subjects (`feat: ...`, `fix(scope): ...`), because a squash merge makes the title the commit on the default branch; CI checks it.
