@@ -33,6 +33,7 @@ from ..common import (
     read_secret_file,
     result,
     safe_filename,
+    source_opener,
 )
 
 NAME = "annas"
@@ -158,7 +159,7 @@ class Session:
     def __init__(self, key: str, opener: urllib.request.OpenerDirector | None = None, domain_list: list[str] | None = None):
         self.key = key
         self.jar = http.cookiejar.CookieJar()
-        self.opener = opener or urllib.request.build_opener(urllib.request.HTTPCookieProcessor(self.jar))
+        self.opener = opener or source_opener("ANNAS", urllib.request.HTTPCookieProcessor(self.jar))
         self.domains = domain_list if domain_list is not None else domains()
         self.base: str | None = None
 

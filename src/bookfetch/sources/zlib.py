@@ -37,6 +37,7 @@ from ..common import (
     read_secret_file,
     result,
     safe_filename,
+    source_opener,
 )
 
 NAME = "zlib"
@@ -198,7 +199,7 @@ class HttpTransport:
     def __init__(self, domain: str, opener: urllib.request.OpenerDirector | None = None):
         self.base = f"https://{domain}"
         self.jar = http.cookiejar.CookieJar()
-        self.opener = opener or urllib.request.build_opener(urllib.request.HTTPCookieProcessor(self.jar))
+        self.opener = opener or source_opener("ZLIB", urllib.request.HTTPCookieProcessor(self.jar))
 
     def request(self, method: str, path: str, form: list[tuple[str, str]] | None = None) -> tuple[int, str]:
         data = urllib.parse.urlencode(form).encode() if form is not None else None
@@ -295,7 +296,7 @@ class Client:
     def __init__(self, transport, credentials: Credentials | None, opener: urllib.request.OpenerDirector | None = None):
         self.transport = transport
         self.credentials = credentials
-        self.opener = opener or urllib.request.build_opener()
+        self.opener = opener or source_opener("ZLIB")
         self.logged_in = False
 
     def call(self, method: str, path: str, form: list[tuple[str, str]] | None = None, what: str | None = None) -> dict:

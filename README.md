@@ -93,6 +93,7 @@ Exit codes: 0 when at least one source worked, 1 when every source that was trie
 | `ZLIB_PASSWORD` | Z-Library password. |
 | `ZLIB_PASSWORD_FILE` | Path to a file containing the password. Used when `ZLIB_PASSWORD` is not set. |
 | `ZLIB_DOMAINS` | Z-Library domain to use (the first entry). Default `z-lib.sk`. |
+| `ANNAS_PROXY`, `ZLIB_PROXY` | HTTP proxy URL (for example `http://127.0.0.1:8118`) for that source only, so the shadow libraries can go through a proxy or VPN while the open sources stay direct. Unset, the source follows `HTTP_PROXY`/`HTTPS_PROXY`. Z-Library's search tab runs in your Chromium and uses that browser's own proxy settings. |
 | `STANDARDEBOOKS_EMAIL` | Optional Standard Ebooks Patrons Circle email. Only needed to lift the anonymous download limit. |
 | `BOOKFETCH_CONFIG` | Path to the config file (see [Several accounts](#several-accounts)). `--config` overrides it. |
 | `BOOKFETCH_CDP_URL` | DevTools address of a running Chromium, for example `http://127.0.0.1:9222`. Needed for Z-Library search and file lookups. |
