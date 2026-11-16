@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import re
 import urllib.parse
+import urllib.request
 from collections.abc import Mapping
 from pathlib import Path
 
@@ -124,3 +125,11 @@ def result(source: str, id: str, **fields) -> dict:
     if fields:
         raise TypeError(f"unknown result fields: {sorted(fields)}")
     return row
+
+
+def source_opener(env_prefix: str, *handlers):
+    """An opener for one source. ``<PREFIX>_PROXY`` (for example ZLIB_PROXY=http://127.0.0.1:40081) sends that source,
+    and only that source, through the proxy; unset, the opener follows the environment's proxy settings as before."""
+    proxy = os.environ.get(f"{env_prefix}_PROXY")
+    extra = [urllib.request.ProxyHandler({"http": proxy, "https": proxy})] if proxy else []
+    return urllib.request.build_opener(*extra, *handlers)

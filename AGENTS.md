@@ -4,7 +4,7 @@ This repository builds `bookfetch`, a stdlib-only Python CLI for searching and d
 
 ## Layout
 
-- `src/bookfetch/common.py`: shared pieces: errors (`BookfetchError`, `MissingConfigError`), User-Agent, file name helpers, and `result()`, which builds the common search result shape `{source, id, title, author, publisher, year, language, extension, size, extra}`.
+- `src/bookfetch/common.py`: shared pieces: errors (`BookfetchError`, `MissingConfigError`), User-Agent, file name helpers, `source_opener()` (a urllib opener that honours `<SOURCE>_PROXY`), and `result()`, which builds the common search result shape `{source, id, title, author, publisher, year, language, extension, size, extra}`.
 - `src/bookfetch/common.py` also holds `Account` (one named account of one source; `repr` and `describe()` never show secret values) and the error classes the CLI uses to decide on fallback: `LoginError` and `QuotaExhaustedError`.
 - `src/bookfetch/config.py`: builds the account list per source: the `env` account from environment variables first (`env_account()` in each source module), then the accounts from the optional TOML config file in file order, then, for modules with `ANONYMOUS = True`, a built-in account named `anonymous`. Also the config path lookup, domain precedence (env, then file, then built-in; only for sources with a `DOMAINS_ENV`), and the permission warning for inline secrets.
 - `src/bookfetch/net.py`: HTTP for the open sources: `Http` with an allow list of host/path `Rule`s checked on every request and every redirect hop, per-host pacing (`Pacer`, injectable clock), the `bookfetch/<version>` User-Agent, and `download()` (refuses HTML, checks magic bytes, size and MD5, writes `<name>.part` then renames).
