@@ -1,7 +1,7 @@
 """``bookfetch source``: bookfetch as a source for media hubs.
 
 Speaks the JSON source protocol of dsh-media-hub (docs/source-protocol.md
-there): ``search``, ``info``, ``download`` and ``cover``, each with
+there): ``search``, ``info``, ``download``, ``cover`` and ``trending``, each with
 ``--json``. A work's id is ``SOURCE:ID`` without a format (``gutenberg:1342``);
 ``download --format`` picks the file. Kinds: ``ebook`` (every book source)
 and ``paper`` (arXiv). Errors go to stderr, the last line saying what failed;
@@ -221,6 +221,47 @@ def cmd_search(a, cfg) -> int:
     return 0
 
 
+# What each source puts forward for a kind: (list id, labels, the source's own method). Only open sources, one request each.
+TRENDING = {
+    "ebook": (
+        ("gutenberg", "most-downloaded", {"en": "Most downloaded", "zh": "下载最多", "fr": "Les plus téléchargés"}, "popular"),
+        ("standardebooks", "new-releases", {"en": "New releases", "zh": "新上架", "fr": "Nouveautés"}, "new_releases"),
+    ),
+}
+
+
+def cmd_trending(a, cfg) -> int:
+    wanted = [row for row in TRENDING.get(a.kind, ()) if row[0] in a.providers]
+    if not wanted:
+        raise BookfetchError(f"no trending list for kind {a.kind}")
+
+    def run(row):
+        name, _, _, method = row
+        source = None
+        try:
+            source = open_source(cfg, name, a.account)
+            return [result_of(found, a.kind) for found in getattr(source, method)(a.limit)], None
+        except BookfetchError as e:
+            return None, f"{name}: {e}"
+        finally:
+            if source is not None:
+                close(source)
+
+    with ThreadPoolExecutor(max_workers=len(wanted)) as pool:
+        outcomes = list(pool.map(run, wanted))
+    lists = []
+    for (_, ident, label, _), (rows, error) in zip(wanted, outcomes, strict=True):
+        if error:
+            note(error)
+        elif rows:
+            lists.append({"id": ident, "label": label, "results": rows})
+    if not lists:
+        note("no source answered")
+        return 1
+    emit({"lists": lists})
+    return 0
+
+
 def cmd_info(a, cfg) -> int:
     source_name, ident = split_id(a.id)
     if source_name == "gutenberg":
@@ -325,7 +366,7 @@ def provider_list(value: str) -> tuple[str, ...]:
 
 
 def add_parser(sub) -> None:
-    sp = sub.add_parser("source", help="speak the media hub source protocol (search, info, download, cover) as JSON")
+    sp = sub.add_parser("source", help="speak the media hub source protocol (search, info, download, cover, trending) as JSON")
     sp.add_argument(
         "--providers",
         type=provider_list,
@@ -344,6 +385,10 @@ def add_parser(sub) -> None:
     s.add_argument("--year-to", type=int)
     s.add_argument("--json", action="store_true")
     s.add_argument("query")
+    t = verbs.add_parser("trending")
+    t.add_argument("--kind", choices=sorted(KINDS), required=True)
+    t.add_argument("--limit", type=int, default=20)
+    t.add_argument("--json", action="store_true")
     i = verbs.add_parser("info")
     i.add_argument("--json", action="store_true")
     i.add_argument("id")
@@ -357,7 +402,7 @@ def add_parser(sub) -> None:
     c.add_argument("url")
 
 
-VERBS = {"search": cmd_search, "info": cmd_info, "download": cmd_download, "cover": cmd_cover}
+VERBS = {"search": cmd_search, "info": cmd_info, "download": cmd_download, "cover": cmd_cover, "trending": cmd_trending}
 
 
 def run(a: argparse.Namespace, cfg: config_module.Config) -> int:

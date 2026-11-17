@@ -10,6 +10,7 @@ Gutenberg plans to retire this XML feed in 2027.
 
 from __future__ import annotations
 
+import json
 import re
 import urllib.parse
 from pathlib import Path
@@ -48,6 +49,7 @@ LANG_SUFFIX_RE = re.compile(r"\s+\(([A-Z][a-z]+(?: [A-Z][a-z]+)?)\)$")
 
 RULES = [
     Rule(r"(www\.)?gutenberg\.org", r"/ebooks/search\.opds/"),
+    Rule(r"gutendex\.com", r"/books/"),
     Rule(r"(www\.)?gutenberg\.org", r"/ebooks/\d+\.opds"),
     Rule(r"(www\.)?gutenberg\.org", r"/ebooks/\d+\.(" + "|".join(re.escape(f) for f, _ in FORMATS.values()) + r")"),
     Rule(r"(www\.)?gutenberg\.org", r"/cache/epub/\d+/[A-Za-z0-9._-]+"),
@@ -79,6 +81,31 @@ def search_url(query: str, lang: str | None) -> str:
     if lang:
         q += f" l.{lang.strip().lower()}"
     return f"{BASE}/ebooks/search.opds/?" + urllib.parse.urlencode({"query": q})
+
+
+# Gutendex (gutendex.com) is a JSON view of the same catalog that sorts by popularity; the Gutenberg feeds cannot.
+POPULAR_URL = "https://gutendex.com/books/?sort=popular"
+
+
+def parse_popular(data: bytes) -> list[dict]:
+    """Book rows from a Gutendex page, in its popularity order."""
+    rows = []
+    for book in json.loads(data).get("results", []):
+        if book.get("media_type") != "Text" or not book.get("id"):
+            continue
+        rows.append(
+            result(
+                NAME,
+                str(book["id"]),
+                title=book.get("title", ""),
+                author="; ".join(a.get("name", "") for a in book.get("authors", [])),
+                publisher="Project Gutenberg",
+                language=(book.get("languages") or [""])[0],
+                extension=FORMATS["epub"][1],
+                extra={"url": f"{BASE}/ebooks/{book['id']}"},
+            )
+        )
+    return rows
 
 
 def parse_search(data: bytes, ext: str | None = None) -> list[dict]:
@@ -138,13 +165,19 @@ class Source(OpenSource):
     limits = "no account quota; bookfetch waits 2 s between requests (Gutenberg allows catalog feeds, not crawling)"
 
     def make_http(self) -> Http:
-        return Http(NAME, RULES, intervals={"www.gutenberg.org": INTERVAL}, groups={"gutenberg.org": "www.gutenberg.org"})
+        return Http(
+            NAME, RULES, intervals={"www.gutenberg.org": INTERVAL, "gutendex.com": 1.0}, groups={"gutenberg.org": "www.gutenberg.org"}
+        )
 
     def search(self, query: str, ext: str | None = None, lang: str | None = None, limit: int = 10) -> list[dict]:
         if not format_key(ext):
             return []
         data = self.http.get(search_url(query, lang), accept="application/atom+xml")
         return parse_search(data, ext)[: max(limit, 0)]
+
+    def popular(self, limit: int = 10) -> list[dict]:
+        """The most downloaded books, most popular first (one request, to Gutendex; the files still come from gutenberg.org)."""
+        return parse_popular(self.http.get(POPULAR_URL, accept="application/json"))[: max(limit, 0)]
 
     def download(self, id: str, out: str | Path = ".", name: str | None = None) -> Path:
         number, key = parse_id(id)

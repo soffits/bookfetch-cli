@@ -178,3 +178,27 @@ def test_helpers():
 def test_a_cover_address_no_source_knows_is_refused(capsys, tmp_path):
     code, _, err = run(capsys, "cover", "--output", str(tmp_path / "c.jpg"), "--", "https://evil.example/c.jpg")
     assert code == 1 and "not a cover address" in err
+
+
+def test_trending_answers_the_open_sources_lists_and_skips_a_failing_one(sources, capsys):
+    row = result("gutenberg", "1342", title="Pride and Prejudice", author="Jane Austen", language="en", extension="epub")
+    sources["gutenberg"] = FakeSource("gutenberg")
+    sources["gutenberg"].popular = lambda limit: [row][:limit]
+    sources["standardebooks"] = FakeSource("standardebooks")
+
+    def broken(limit):
+        raise BookfetchError("rate limited")
+
+    sources["standardebooks"].new_releases = broken
+    code, out, err = run(capsys, "trending", "--kind", "ebook", "--limit", "5", "--json")
+    answer = json.loads(out)
+    assert code == 0
+    assert [one["id"] for one in answer["lists"]] == ["most-downloaded"]
+    assert answer["lists"][0]["label"]["en"] == "Most downloaded"
+    assert answer["lists"][0]["results"][0]["id"] == "gutenberg:1342"
+    assert "rate limited" in err
+
+
+def test_trending_has_no_list_for_papers(sources, capsys):
+    code, _, err = run(capsys, "trending", "--kind", "paper", "--json")
+    assert code == 1 and "no trending list for kind paper" in err

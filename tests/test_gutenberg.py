@@ -1,5 +1,7 @@
 """Offline tests: Project Gutenberg."""
 
+import json
+
 import pytest
 from helpers import EPUB, fixture, make_http
 
@@ -47,3 +49,24 @@ def test_gutenberg_missing_format(tmp_path):
     routes["https://www.gutenberg.org/ebooks/1342.opds"] = (200, feed)
     with pytest.raises(gutenberg.GutenbergError, match="no azw3 file"):
         source.download("1342:azw3", out=tmp_path)
+
+
+def test_gutenberg_popular_is_one_request_to_gutendex_in_its_order():
+    page = {
+        "results": [
+            {"id": 1342, "title": "Pride and Prejudice", "authors": [{"name": "Austen, Jane"}], "languages": ["en"], "media_type": "Text"},
+            {"id": 7, "title": "An album", "authors": [], "languages": ["en"], "media_type": "Sound"},
+            {
+                "id": 84,
+                "title": "Frankenstein",
+                "authors": [{"name": "Shelley, Mary Wollstonecraft"}],
+                "languages": ["en"],
+                "media_type": "Text",
+            },
+        ]
+    }
+    routes = {"https://gutendex.com/books/?sort=popular": (200, json.dumps(page).encode(), {"Content-Type": "application/json"})}
+    http, web, _ = make_http(gutenberg, routes)
+    rows = gutenberg.Source(http=http).popular(limit=5)
+    assert [r["id"] for r in rows] == ["1342", "84"] and rows[0]["language"] == "en"
+    assert len(web.requests) == 1

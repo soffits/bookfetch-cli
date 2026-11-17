@@ -91,6 +91,7 @@ bookfetch source search --kind ebook --limit 10 --language en --json -- "pride a
 bookfetch source info --json -- gutenberg:1342
 bookfetch source download --id=standardebooks:jane-austen/emma --format epub --output DIR --json
 bookfetch source cover --output cover.jpg -- https://www.gutenberg.org/cache/epub/1342/pg1342.cover.medium.jpg
+bookfetch source trending --kind ebook --limit 20 --json   # Gutenberg most downloaded (via Gutendex), Standard Ebooks new releases
 ```
 
 Kinds are `ebook` (every book source) and `paper` (arXiv). A work's id is `SOURCE:ID` without a format; `download --format` picks the file, and a source that has one file per work (Anna's Archive, arXiv) refuses a format it doesn't have. `--providers annas,gutenberg` limits the sources; Z-Library is used only when named there, since its search runs inside a browser. A search where some sources fail still answers with the others and says which failed on stderr.
