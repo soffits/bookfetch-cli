@@ -57,6 +57,7 @@ WINDOWS = ((30.0, 30), (6 * 3600.0, 90))
 
 RULES = [
     Rule(r"standardebooks\.org", r"/feeds/opds/all"),
+    Rule(r"standardebooks\.org", r"/feeds/atom/new-releases"),
     Rule(r"standardebooks\.org", rf"/ebooks/{BOOK}/downloads/[a-z0-9_-]+(?:_advanced)?(?:\.kepub)?\.(?:epub|azw3)"),
 ]
 
@@ -102,6 +103,10 @@ def download_url(path: str, key: str) -> str:
 def search_url(query: str, limit: int) -> str:
     params = {"query": query.strip(), "per-page": str(min(max(limit, 1), MAX_PER_PAGE))}
     return f"{BASE}/feeds/opds/all?" + urllib.parse.urlencode(params)
+
+
+# The public Atom feed of the 15 latest books; the OPDS one of the same name wants a Patrons Circle login.
+NEW_RELEASES_URL = f"{BASE}/feeds/atom/new-releases"
 
 
 def book_path(entry_id: str) -> str:
@@ -253,6 +258,13 @@ class Source(OpenSource):
             return []
         data = self._call(lambda: self.http.get(search_url(query, limit), accept="application/atom+xml"))
         return parse_search(data, ext)[:limit]
+
+    def new_releases(self, limit: int = 10) -> list[dict]:
+        """The newest books, newest first (one request)."""
+        if limit <= 0:
+            return []
+        data = self._call(lambda: self.http.get(NEW_RELEASES_URL, accept="application/atom+xml"))
+        return parse_search(data)[:limit]
 
     def download(self, id: str, out: str | Path = ".", name: str | None = None) -> Path:
         path, key = parse_id(id)

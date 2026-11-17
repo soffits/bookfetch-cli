@@ -126,3 +126,17 @@ def test_standardebooks_patron_skips_log(tmp_path):
     log = standardebooks.DownloadLog(tmp_path / "log.json")
     standardebooks.Source(http=http, email="p@example.com", log=log).download(book, out=tmp_path)
     assert not (tmp_path / "log.json").exists()
+
+
+def test_standardebooks_new_releases_is_one_request_to_the_fixed_feed(tmp_path):
+    routes = {
+        "https://standardebooks.org/feeds/atom/new-releases": (
+            200,
+            fixture("se_search.opds.xml"),
+            {"Content-Type": "application/atom+xml"},
+        )
+    }
+    http, web, _ = make_http(standardebooks, routes)
+    source = standardebooks.Source(http=http, log=standardebooks.DownloadLog(tmp_path / "log.json"))
+    assert source.new_releases(limit=3)
+    assert [urllib.parse.urlsplit(r.full_url).path for r in web.requests] == ["/feeds/atom/new-releases"]
