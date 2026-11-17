@@ -7,7 +7,7 @@ import json
 import sys
 from concurrent.futures import ThreadPoolExecutor
 
-from . import __version__, config
+from . import __version__, config, protocol
 from .common import Account, BookfetchError, ConfigError, LoginError, MissingConfigError, QuotaExhaustedError
 from .sources import SOURCES
 
@@ -94,6 +94,7 @@ def build_parser() -> argparse.ArgumentParser:
     ap = sub.add_parser("accounts", aliases=["config"], help="list configured accounts and where they come from (no secrets)")
     ap.add_argument("--source", type=source_list, default="all", metavar="NAMES", help=SOURCE_HELP)
     add_common(ap, top=False)
+    protocol.add_parser(sub)
     return p
 
 
@@ -318,7 +319,14 @@ def cmd_accounts(a: argparse.Namespace, cfg) -> int:
     return 0
 
 
-COMMANDS = {"search": cmd_search, "download": cmd_download, "quota": cmd_quota, "accounts": cmd_accounts, "config": cmd_accounts}
+COMMANDS = {
+    "search": cmd_search,
+    "download": cmd_download,
+    "quota": cmd_quota,
+    "accounts": cmd_accounts,
+    "config": cmd_accounts,
+    "source": protocol.run,
+}
 
 
 def main(argv: list[str] | None = None) -> int:

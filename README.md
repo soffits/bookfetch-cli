@@ -82,6 +82,19 @@ bookfetch accounts
 
 Exit codes: 0 when at least one source worked, 1 when every source that was tried failed, 2 when no source was available.
 
+## As a source for a media hub
+
+`bookfetch source` speaks the JSON source protocol of [dsh-media-hub](https://github.com/soffits/dsh-media-hub) (its `docs/source-protocol.md`), so a hub can search, describe and download books through bookfetch while every rule here still applies (allow-listed addresses, pacing, the per-source proxy variables):
+
+```sh
+bookfetch source search --kind ebook --limit 10 --language en --json -- "pride and prejudice"
+bookfetch source info --json -- gutenberg:1342
+bookfetch source download --id=standardebooks:jane-austen/emma --format epub --output DIR --json
+bookfetch source cover --output cover.jpg -- https://www.gutenberg.org/cache/epub/1342/pg1342.cover.medium.jpg
+```
+
+Kinds are `ebook` (every book source) and `paper` (arXiv). A work's id is `SOURCE:ID` without a format; `download --format` picks the file, and a source that has one file per work (Anna's Archive, arXiv) refuses a format it doesn't have. `--providers annas,gutenberg` limits the sources; Z-Library is used only when named there, since its search runs inside a browser. A search where some sources fail still answers with the others and says which failed on stderr.
+
 ## Environment variables
 
 | Variable | Meaning |
