@@ -7,6 +7,7 @@ Downloads use the member JSON API (/dyn/api/fast_download.json).
 
 from __future__ import annotations
 
+import datetime
 import html
 import http.client
 import http.cookiejar
@@ -142,14 +143,46 @@ def parse_results(page: str) -> list[dict[str, str]]:
     return results
 
 
+MEMBERSHIP_LINE = re.compile(r"(<div[^>]*>)\s*Membership:\s*<strong>(.*?)</strong>(.*?)</div>", re.S)
+
+
+def _iso_date(text: str) -> str:
+    """Turn 'November 17, 2026' into '2026-11-17'; leave anything else as it is."""
+    try:
+        return datetime.datetime.strptime(text.strip(), "%B %d, %Y").date().isoformat()
+    except ValueError:
+        return text.strip()
+
+
 def parse_quota(page: str) -> dict[str, str]:
-    """Read membership and fast download usage from the /account/ page."""
-    m = re.search(r"Membership:\s*(.*?)</", page, re.S)
+    """Read membership and fast download usage from the /account/ page.
+
+    A lapsed membership stays on the page as a struck-through line (``line-through``) with its tier and end
+    date, followed by a plain ``Membership: None`` line. Only a line that is not struck through and not
+    ``None`` counts as an active membership; the fast download usage line only exists for those.
+    """
+    active = expired = ""
+    for opening, tier_html, rest in MEMBERSHIP_LINE.findall(page):
+        tier = clean(tier_html)
+        until = re.search(r"until\s+([^<>()]+?)\s*(?:[()]|$)", clean_keep_tags(rest))
+        date = _iso_date(until.group(1)) if until else ""
+        if not tier or tier.lower() == "none":
+            continue
+        if "line-through" in opening:
+            expired = expired or f"{tier} expired {date}".strip()
+        elif not active:
+            active = f"{tier} (until {date})" if date else tier
+    if not active:
+        if not MEMBERSHIP_LINE.search(page):  # layout not recognised
+            return {"membership": "?", "fast_downloads_used": "?"}
+        return {"membership": f"none ({expired})" if expired else "none"}
     u = re.search(r"Fast downloads used[^:]*:\s*(.*?)<a ", page, re.S)
-    return {
-        "membership": clean(m.group(1)) if m else "?",
-        "fast_downloads_used": clean(u.group(1)) if u else "?",
-    }
+    return {"membership": active, "fast_downloads_used": clean(u.group(1)) if u else "?"}
+
+
+def clean_keep_tags(s: str) -> str:
+    """Text of an HTML fragment with tags replaced by spaces (so words do not run together)."""
+    return re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", " ", s))).strip()
 
 
 class Session:

@@ -34,7 +34,27 @@ def test_parse_results_empty_page():
 
 def test_parse_quota():
     q = parse_quota((FIXTURES / "account.html").read_text(encoding="utf-8"))
-    assert q == {"membership": "Example Tier", "fast_downloads_used": "3 / 50"}
+    assert q == {"membership": "Example Tier (until 2099-01-01)", "fast_downloads_used": "3 / 50"}
+
+
+def test_parse_quota_expired_membership_is_none():
+    # An expired tier stays on the page as a struck-through line before "Membership: None".
+    q = parse_quota((FIXTURES / "account_expired.html").read_text(encoding="utf-8"))
+    assert q == {"membership": "none (Example Tier (50) expired 2026-11-17)"}
+
+
+def test_parse_quota_no_membership_ever():
+    page = '<div class="mb-4">Membership: <strong>None</strong> <a href="/donate">(become a member)</a></div>'
+    assert parse_quota(page) == {"membership": "none"}
+
+
+def test_parse_quota_active_after_expired_line():
+    page = (
+        '<div class="line-through">Membership: <strong>Old Tier</strong> until May 1, 2025</div>'
+        '<div>Membership: <strong>New Tier</strong> until May 1, 2027 <a href="/donate">(extend)</a></div>'
+        '<div>Fast downloads used (last 18 hours): 0 / 100 <a href="/faq">details</a></div>'
+    )
+    assert parse_quota(page) == {"membership": "New Tier (until 2027-05-01)", "fast_downloads_used": "0 / 100"}
 
 
 def test_parse_quota_unknown():

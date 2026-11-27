@@ -170,7 +170,14 @@ def test_cli_quota(monkeypatch, capsys):
     s, _ = session({"/account/": (FIXTURES / "account.html").read_bytes()})
     use_session(monkeypatch, s)
     assert cli.main(["quota"]) == 0
-    assert capsys.readouterr().out == "annas/env: membership: Example Tier, fast downloads used: 3 / 50\n"
+    assert capsys.readouterr().out == "annas/env: membership: Example Tier (until 2099-01-01), fast downloads used: 3 / 50\n"
+
+
+def test_cli_quota_expired_membership(monkeypatch, capsys):
+    s, _ = session({"/account/": (FIXTURES / "account_expired.html").read_bytes()})
+    use_session(monkeypatch, s)
+    assert cli.main(["quota"]) == 0
+    assert capsys.readouterr().out == "annas/env: membership: none (Example Tier (50) expired 2026-11-17)\n"
 
 
 def test_cli_missing_key_exit_code(monkeypatch, capsys):
